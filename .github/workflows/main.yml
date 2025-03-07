@@ -2,7 +2,8 @@ name: run get_stock_info.py
 
 on:
   schedule:
-    - cron: '0 0 * * *' # At 00:00 on Monday
+    - cron: '0 2-7 * * 1-5'   # Every hour from 10:00 AM to 3:00 PM HKT (UTC 2:00 PM to 7:00 PM)
+    - cron: '30 7 * * 1-5'     # At 3:30 PM HKT (UTC 7:30 PM)
 
 jobs:
   build:
