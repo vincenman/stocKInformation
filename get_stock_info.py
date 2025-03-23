@@ -1,94 +1,95 @@
 import os
 import yfinance as yf
 import logging
-import matplotlib.pyplot as plt
 from smtplib import SMTP
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.application import MIMEApplication
 
 # Email configuration
 smtp_server_info = 'smtp.gmail.com'
-smtp_port = 587
+smtp_port = 587  # Change to 587 for TLS
 email_id = 'vincentman1027@gmail.com'  # Change to your email
-email_password = 'nkdryjqgpqeugfwh'  # Change to your email password
+email_password = 'nkdryjqgpqeugfwh'    # Change to your email password
 recipient_emails = ["vincentman1027@yahoo.com.hk", "lambenny947@gmail.com"]  # List of recipient emails
 
-
-def send_email(content, attachment_path=None):
+def send_email(content):
+    port = smtp_port  # Use the correct port
+    smtp_server = smtp_server_info
     sender_email = email_id
     receiver_emails = recipient_emails
-    subject = "Financial Decision Regarding Stock Prices"
+    subject = "Financial Summary"
+    body = content + " \nCompleted."
 
-    # Create the email message
-    message = MIMEMultipart()
-    message['From'] = sender_email
-    message['To'] = ", ".join(receiver_emails)
-    message['Subject'] = subject
+    message = """\
+From: {}
+To: {}
+Subject: {}
+Content-Type: text/html
 
-    # Attach the email body
-    message.attach(MIMEText(content + " \nCompleted.", 'plain'))
+{}
+""".format(sender_email, ", ".join(receiver_emails), subject, body)  # Format the message with recipients
 
-    # Attach the histogram if provided
-    if attachment_path:
-        with open(attachment_path, 'rb') as attachment:
-            part = MIMEApplication(attachment.read(), Name=os.path.basename(attachment_path))
-            part['Content-Disposition'] = f'attachment; filename="{os.path.basename(attachment_path)}"'
-            message.attach(part)
-
+    server = None  # Initialize server variable
     try:
-        server = SMTP(smtp_server_info, smtp_port)
+        server = SMTP(smtp_server, port)
         server.starttls()  # Upgrade the connection to secure
         server.login(sender_email, email_password)  # Log in to the email account
-        server.sendmail(sender_email, receiver_emails, message.as_string())
-
+        server.sendmail(sender_email, receiver_emails, message)  # Send the email
         logging.info("Email sent successfully.")
     except Exception as e:
-        logging.info("Failed to send email: {}".format(e))
-        print("Failed to send email: {}".format(e))
+        logging.error("Failed to send email: {}".format(e))  # Log the error
+        print("Failed to send email: {}".format(e))  # Print the error
     finally:
-        server.quit()  # Always quit the server after sending
-
+        if server is not None:
+            server.quit()  # Always quit the server after sending
 
 # Configure logging
 logging.basicConfig(filename='stock_price_log.txt', level=logging.INFO,
                     format='%(asctime)s - %(message)s')
 
-Ticker = "3416.HK"
-# Fetch stock data
-myTicket = yf.Ticker(Ticker)
-# Fetch only the last 10 working days of historical data
-data = myTicket.history(period='10d')
+# List of tickers
+tickers = ["03416.HK", "PPG", "PEP", "NDSN", "BDX", "HRL", "MDT", "SYY", "ADM", "JNJ", "SWK"]
 
-# Get the last day's closing price
-last_day_close = data['Close'].iloc[-2]  # Previous day's closing price
-current_price = myTicket.history(period='1d')['Close'].iloc[-1]  # Current price
+# Accumulate messages for all tickets
+all_messages = []
 
-# Create the alert message
-message = (f"For The Stock: {Ticker}. Current price: {current_price}\n"
-           f"Last day's closing price: {last_day_close}\n"
-           f"Price change: {((current_price - last_day_close) / last_day_close) * 100:.2f}%")
+for ticker in tickers:
+    # Fetch stock data
+    myTicket = yf.Ticker(ticker)
+    # Fetch only the last 30 days of historical data
+    data = myTicket.history(period='30d')
 
-# Log the message
-logging.info(message)
-print(message)  # Optionally print the message to the console
+    # Check if there are enough data points
+    if len(data) < 2:
+        logging.warning(f"Not enough data for {ticker}. Skipping.")
+        print(f"Not enough data for {ticker}. Skipping.")
+        continue
 
-# Plot closing prices against dates
-plt.figure(figsize=(10, 6))
-plt.plot(data.index, data['Close'], marker='o', color='blue', linestyle='-')
-plt.xlabel('Date')
-plt.ylabel('Closing Price')
-plt.title(f'Closing Prices for {Ticker} Over the Last 10 Working Days')
-plt.xticks(rotation=45)
-plt.grid()
+    # Get the last day's closing price
+    last_day_close = data['Close'].iloc[-2]  # Previous day's closing price
+    current_price = myTicket.history(period='1d')['Close'].iloc[-1]  # Current price
 
-# Save the plot as a PNG file
-histogram_path = '3416_HK_closing_prices.jpg'
-plt.savefig(histogram_path, bbox_inches='tight')
-plt.close()
+    # Calculate price change percentage
+    price_change_percent = ((current_price - last_day_close) / last_day_close) * 100
+    message = (f"For The Stock: {ticker}. Current price: {current_price:.2f}<br>"
+               f"Last day's closing price: {last_day_close:.2f}<br>"
+               f"Price change: {price_change_percent:.2f}%<br>")
 
-# Send the email with the message and attach the histogram
-send_email(message, histogram_path)
+    # Check for drop of 2% or more
+    if price_change_percent <= -2:
+        message += (f"<strong style='color:blue;'>Suggestion: Consider buying {ticker}!</strong>")
+    else:
+        message += (f"<strong style='color:red;'>Please wait to buy {ticker}!</strong>")
 
-# Logging the completion
-logging.info("Line plot generated and email sent.")
+    # Append the message to the list
+    all_messages.append(message)
+
+# Create the final message
+final_message = "<br><br>".join(all_messages)  # Join all messages with double line breaks
+
+# Log and send the email with all ticket information
+if final_message:
+    logging.info("Sending summary email.")
+    print(final_message)  # Optionally print the final message to the console
+    send_email(final_message)
+else:
+    logging.warning("No data to send in the email.")
+    print("No data to send in the email.")
