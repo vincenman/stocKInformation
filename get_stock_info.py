@@ -46,7 +46,7 @@ logging.basicConfig(filename='stock_price_log.txt', level=logging.INFO,
                     format='%(asctime)s - %(message)s')
 
 # List of tickers
-tickers = ["03416.HK", "PPG", "PEP", "NDSN", "BDX", "HRL", "MDT", "SYY", "ADM", "JNJ", "SWK"]
+tickers = ["03416.HK", "UL", "VOO", "SPY"]
 
 # Accumulate messages for all tickets
 all_messages = []
@@ -74,7 +74,7 @@ for ticker in tickers:
                f"Price change: {price_change_percent:.2f}%<br>")
 
     # Check for drop of 2% or more
-    if price_change_percent <= -2:
+    if price_change_percent <= -1.5:
         message += (f"<strong style='color:blue;'>Suggestion: Consider buying {ticker}!</strong>")
     else:
         message += (f"<strong style='color:red;'>Please wait to buy {ticker}!</strong>")
