@@ -46,7 +46,7 @@ logging.basicConfig(filename='stock_price_log.txt', level=logging.INFO,
                     format='%(asctime)s - %(message)s')
 
 # List of tickers
-tickers = ["03416.HK", "UL", "VOO", "SPY"]
+tickers = ["03416.HK", "BRK.B","UL", "VOO", "SPY"]
 
 # Accumulate messages for all tickets
 all_messages = []
