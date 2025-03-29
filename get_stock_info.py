@@ -41,55 +41,76 @@ Content-Type: text/html
         if server is not None:
             server.quit()  # Always quit the server after sending
 
-# Configure logging
+
+def calculate_macd(ticker, period='1y', fast=12, slow=26, signal=9):
+    """Calculate MACD for a given ticker."""
+    data = yf.Ticker(ticker).history(period=period, interval='1wk')  # Weekly data
+    if len(data) < slow + signal:
+        return None  # Not enough data
+
+    close_prices = data['Close']
+    exp1 = close_prices.ewm(span=fast, adjust=False).mean()
+    exp2 = close_prices.ewm(span=slow, adjust=False).mean()
+    macd_line = exp1 - exp2
+    signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+    macd_histogram = macd_line - signal_line
+
+    return {
+        'macd_line': macd_line.iloc[-1],
+        'signal_line': signal_line.iloc[-1],
+        'histogram': macd_histogram.iloc[-1],
+        'is_negative': macd_histogram.iloc[-1] < 0  # True if MACD is negative
+    }
+
+
+# Configure logging (unchanged)
 logging.basicConfig(filename='stock_price_log.txt', level=logging.INFO,
                     format='%(asctime)s - %(message)s')
 
-# List of tickers
-tickers = ["03416.HK", "BRK.B","UL", "VOO", "SPY"]
-
-# Accumulate messages for all tickets
+# List of tickers (unchanged)gfr
+tickers = ["3416.HK", "BRK-B", "QQQM", "VOO", "SPY", "UL"]
 all_messages = []
 
 for ticker in tickers:
-    # Fetch stock data
     myTicket = yf.Ticker(ticker)
-    # Fetch only the last 30 days of historical data
     data = myTicket.history(period='30d')
 
-    # Check if there are enough data points
     if len(data) < 2:
         logging.warning(f"Not enough data for {ticker}. Skipping.")
-        print(f"Not enough data for {ticker}. Skipping.")
         continue
 
-    # Get the last day's closing price
-    last_day_close = data['Close'].iloc[-2]  # Previous day's closing price
-    current_price = myTicket.history(period='1d')['Close'].iloc[-1]  # Current price
-
-    # Calculate price change percentage
+    last_day_close = data['Close'].iloc[-2]
+    current_price = myTicket.history(period='1d')['Close'].iloc[-1]
     price_change_percent = ((current_price - last_day_close) / last_day_close) * 100
+
+    # Calculate Weekly MACD
+    macd_data = calculate_macd(ticker)
+    macd_status = "Negative (Bearish)" if macd_data and macd_data['is_negative'] else "Positive (Bullish)"
+
     message = (f"For The Stock: {ticker}. Current price: {current_price:.2f}<br>"
                f"Last day's closing price: {last_day_close:.2f}<br>"
-               f"Price change: {price_change_percent:.2f}%<br>")
+               f"Price change: {price_change_percent:.2f}%<br>"
+               f"Weekly MACD Status: {macd_status}<br>")
 
-    # Check for drop of 2% or more
+    # Buy suggestion logic (updated)
     if price_change_percent <= -1.5:
-        message += (f"<strong style='color:blue;'>Suggestion: Consider buying {ticker}!</strong>")
+        if macd_data and macd_data['is_negative']:
+            message += (
+                f"<strong style='color:blue;'>Suggestion: STRONG BUY! (Price drop + Weekly MACD negative)</strong>")
+        else:
+            message += (
+                f"<strong style='color:green;'>Suggestion: Consider buying (Price drop but MACD not negative yet)</strong>")
     else:
-        message += (f"<strong style='color:red;'>Please wait to buy {ticker}!</strong>")
+        message += (
+            f"<strong style='color:red;'>Wait to buy {ticker} (No significant drop or MACD not aligned)</strong>")
 
-    # Append the message to the list
     all_messages.append(message)
 
-# Create the final message
-final_message = "<br><br>".join(all_messages)  # Join all messages with double line breaks
-
-# Log and send the email with all ticket information
+# Send email (unchanged)
+final_message = "<br><br>".join(all_messages)
 if final_message:
     logging.info("Sending summary email.")
-    print(final_message)  # Optionally print the final message to the console
+    print(final_message)
     send_email(final_message)
 else:
     logging.warning("No data to send in the email.")
-    print("No data to send in the email.")
