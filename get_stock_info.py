@@ -7,8 +7,9 @@ from smtplib import SMTP
 smtp_server_info = 'smtp.gmail.com'
 smtp_port = 587  # Change to 587 for TLS
 email_id = 'vincentman1027@gmail.com'  # Change to your email
-email_password = 'nkdryjqgpqeugfwh'    # Change to your email password
+email_password = 'nkdryjqgpqeugfwh'  # Change to your email password
 recipient_emails = ["vincentman1027@yahoo.com.hk", "lambenny947@gmail.com"]  # List of recipient emails
+
 
 def send_email(content):
     port = smtp_port  # Use the correct port
@@ -63,11 +64,26 @@ def calculate_macd(ticker, period='1y', fast=12, slow=26, signal=9):
     }
 
 
+def calculate_rsi(ticker, period=14):
+    """Calculate RSI for a given ticker."""
+    data = yf.Ticker(ticker).history(period='1y')
+    if len(data) < period:
+        return None  # Not enough data
+
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+
+    return rsi.iloc[-1]  # Return the latest RSI value
+
+
 # Configure logging (unchanged)
 logging.basicConfig(filename='stock_price_log.txt', level=logging.INFO,
                     format='%(asctime)s - %(message)s')
 
-# List of tickers (unchanged)gfr
+# List of tickers (unchanged)
 tickers = ["3416.HK", "BRK-B", "QQQM", "VOO", "SPY", "UL"]
 all_messages = []
 
@@ -87,16 +103,26 @@ for ticker in tickers:
     macd_data = calculate_macd(ticker)
     macd_status = "Negative (Bearish)" if macd_data and macd_data['is_negative'] else "Positive (Bullish)"
 
+    # Calculate RSI
+    rsi_value = calculate_rsi(ticker)
+
     message = (f"For The Stock: {ticker}. Current price: {current_price:.2f}<br>"
                f"Last day's closing price: {last_day_close:.2f}<br>"
                f"Price change: {price_change_percent:.2f}%<br>"
-               f"Weekly MACD Status: {macd_status}<br>")
+               f"Weekly MACD Status: {macd_status}<br>"
+               f"Current RSI: {rsi_value:.2f}<br>")
 
     # Buy suggestion logic (updated)
     if price_change_percent <= -1.5:
-        if macd_data and macd_data['is_negative']:
+        if macd_data and macd_data['is_negative'] and rsi_value < 30:
+            message += (
+                f"<strong style='color:blue;'>Suggestion: HIGHLY STRONG BUY! (Price drop + Weekly MACD negative + RSI < 30)</strong>")
+        elif macd_data and macd_data['is_negative']:
             message += (
                 f"<strong style='color:blue;'>Suggestion: STRONG BUY! (Price drop + Weekly MACD negative)</strong>")
+        elif rsi_value < 30:
+            message += (
+                f"<strong style='color:blue;'>Suggestion: STRONG BUY! (RSI < 30)</strong>")
         else:
             message += (
                 f"<strong style='color:green;'>Suggestion: Consider buying (Price drop but MACD not negative yet)</strong>")
