@@ -120,9 +120,9 @@ for ticker in tickers:
         elif macd_data and macd_data['is_negative']:
             message += (
                 f"<strong style='color:blue;'>Suggestion: STRONG BUY! (Price drop + Weekly MACD negative)</strong>")
-        elif rsi_value < 30:
+        elif rsi_value < 40:
             message += (
-                f"<strong style='color:blue;'>Suggestion: STRONG BUY! (RSI < 30)</strong>")
+                f"<strong style='color:blue; text-decoration: underline;'>Suggestion: MUST BUY! (RSI < 40)</strong>")
         else:
             message += (
                 f"<strong style='color:green;'>Suggestion: Consider buying (Price drop but MACD not negative yet)</strong>")
