@@ -84,7 +84,7 @@ logging.basicConfig(filename='stock_price_log.txt', level=logging.INFO,
                     format='%(asctime)s - %(message)s')
 
 # List of tickers (unchanged)
-tickers = ["3416.HK", "0949.HK","2638.HK", "6823.HK","03003.HK", "BRK-B", "QQQM", "VOO", "SPY", "UL"]
+tickers = ["3416.HK", "0700.HK", "0005.HK", "1299.HK", "0941.HK", "0883.HK", "0949.HK","2638.HK", "6823.HK","03003.HK", "BRK-B", "QQQM", "VOO", "SPY", "UL"]
 all_messages = []
 
 for ticker in tickers:
